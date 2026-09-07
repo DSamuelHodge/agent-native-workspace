@@ -1,0 +1,16 @@
+{
+  "name": "agent-native-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npx tsx tests/orm.test.ts"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.9",
+    "drizzle-orm": "^0.44.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.2"
+  }
+}
