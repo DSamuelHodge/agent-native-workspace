@@ -18,7 +18,10 @@ def database_url() -> str:
         path = path.removeprefix("//")
         return f"sqlite:///{path}"
     if url.startswith(("libsql://", "https://")):
-        # remote Turso: require sqlalchemy-libsql or use HTTP separately
+        # remote Turso: require sqlalchemy-libsql (install via [turso] extra)
+        # sqlalchemy-libsql registers support; rewrite to dialect form if needed
+        if url.startswith("libsql://"):
+            url = "sqlite+libsql://" + url[len("libsql://"):]
         return url
     return url
 

@@ -15,6 +15,7 @@ For full features: pip install -e '.[mcp]'
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from datetime import UTC
 from pathlib import Path
@@ -43,6 +44,7 @@ except Exception:  # noqa: BLE001
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DB = ROOT / "data" / "agent_native.db"
 
+logger = logging.getLogger(__name__)
 
 def _get_session():
     if not HAS_SQL or get_engine is None:
@@ -112,6 +114,48 @@ def _add_tag_option(session, entity_id: str, prop_def_id: str, option_id: str):
             "INSERT OR IGNORE INTO entity_property_options (entity_id, property_definition_id, option_id, added_at) "
             "VALUES (:e, :p, :o, :a)"
         ), {"e": entity_id, "p": prop_def_id, "o": option_id, "a": now}
+    )
+
+
+# ============================================================
+# Production helpers: observability + activity attribution
+# ============================================================
+
+def _log_activity(
+    session,
+    user_id: str,
+    action_type: str,
+    entity_id: str | None = None,
+    property_name: str | None = None,
+    property_type: str | None = None,
+    from_value: str | None = None,
+    to_value: str | None = None,
+    actor: str = "agent",
+) -> None:
+    """Insert an attribution row into activity_log (production-grade)."""
+    import uuid
+    from datetime import datetime
+
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    aid = str(uuid.uuid4())
+    session.execute(
+        text(
+            "INSERT INTO activity_log (id, user_id, actor, action_type, entity_id, "
+            "property_name, property_type, from_value, to_value, created_at) "
+            "VALUES (:id, :u, :actor, :atype, :eid, :pname, :ptype, :fval, :tval, :ca)"
+        ),
+        {
+            "id": aid,
+            "u": user_id,
+            "actor": actor,
+            "atype": action_type,
+            "eid": entity_id,
+            "pname": property_name,
+            "ptype": property_type,
+            "fval": from_value,
+            "tval": to_value,
+            "ca": now,
+        },
     )
 
 
@@ -797,8 +841,9 @@ def _register_tools(mcp: FastMCP) -> None:
                 {"e": eid, "c": fileContent}
             )
             if isTask:
-                # Mark as task via a convention property (or skill-like). For now just name prefix is enough; real tasks use propf.
                 pass
+            logger.info("CreateDocument created id=%s name=%s", eid, documentName)
+            _log_activity(session, owner, "create_document", entity_id=eid)
             session.commit()
             return {"id": eid, "name": documentName} 
         finally:
@@ -965,6 +1010,8 @@ def _register_tools(mcp: FastMCP) -> None:
             eid = _create_entity(session, "project", owner, projectName, parentProjectId)
             # Production: index project name for search
             session.execute(text("INSERT INTO search_name_fts (entity_id, name) VALUES (:e, :n)"), {"e": eid, "n": projectName})
+            logger.info("CreateProject created id=%s name=%s", eid, projectName)
+            _log_activity(session, owner, "create_project", entity_id=eid)
             session.commit()
             return {"id": eid, "name": projectName, "entityType": "project"}
         finally:
@@ -1045,6 +1092,8 @@ def _register_tools(mcp: FastMCP) -> None:
                 text("INSERT INTO reminders (entity_id, user_id, text, remind_at, attached_entity_id) VALUES (:e, :u, :t, :ra, :ae)"),
                 {"e": eid, "u": owner, "t": description, "ra": remindAt, "ae": entityId}
             )
+            logger.info("CreateReminder created id=%s", eid)
+            _log_activity(session, owner, "create_reminder", entity_id=eid)
             session.commit()
             return {"id": eid, "text": description, "remindAt": remindAt}
         finally:

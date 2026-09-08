@@ -103,3 +103,29 @@ Tool surface: modeled 1:1 on Macro's ~67 tools (ListEntities, ReadContent, SetEn
 - **Permissions**: Derived from channel membership / ownership (no per-object ACLs in the core model).
 - **Bots vs agent chats**: Separate (bots = stable webhook actors; chats = conversational sessions). Collapsible in pure headless setups.
 - Stateless MCP: handlers must be safe to run against a fresh DB session per request; do not rely on in-memory connection state across calls.
+
+## Production
+
+This workspace is production-grade ready:
+
+- **Docker spin-up for tests/evals**: `./scripts/docker_mcp_test.sh` (requires local Docker daemon). Uses bind mount for reproducible DB.
+  - For Turso remote: `DATABASE_URL=libsql://...?... python ...` or pass `-e` in the script.
+  - Alternative prod image: `docker build -f Dockerfile -t agent-native-mcp .` then `docker run -e DATABASE_URL=... agent-native-mcp`
+- **Turso / libSQL remote**: Set `DATABASE_URL=libsql://agent-native-workspace-hodgederrick.aws-us-west-2.turso.io?authToken=...`
+  - Install extra: `pip install -e '.[turso]'` (provides sqlalchemy-libsql for remote dialect).
+  - Schema applied to the DB; FTS5 supported on Turso.
+- **FTS auto-maintenance**: `CreateDocument`, `RenameDocument`, `EditDocument`, `CreateProject` keep `search_name_fts` / `search_content_fts` in sync automatically (no manual seeds needed for NameSearch/ContentSearch).
+- **Observability**: basic `logging.getLogger(__name__)` calls on mutations.
+- **Activity attribution**: `_log_activity` emits to `activity_log` for create_document / create_project / create_reminder (extend to other mutators as needed).
+- **Transactions**: all mutating tools issue `session.commit()` (wrap in try/rollback for stricter prod if desired).
+- **Auth note**: current impl uses demo-user bootstrap (`_get_or_create_demo_user`). For real multi-user, pass identity via per-request context/headers and enforce in handlers.
+- **Stubs**: remaining Macro tools (WebSearch, SendEmail, Subagent, etc.) are catalog entries only; implement or document as "external delegate" for your host.
+
+See `docs/agent_native_workspace_schema.md` and `python/src/agent_native_workspace/mcp_server.py` (TOOLS_CATALOG + IMPLEMENTED).
+
+To run integration tests against Turso:
+
+```sh
+DATABASE_URL=libsql://...?... ./scripts/docker_mcp_test.sh
+# or locally after pip install -e '.[turso]'
+```

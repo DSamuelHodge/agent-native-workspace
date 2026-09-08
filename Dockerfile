@@ -17,7 +17,7 @@ WORKDIR /app
 # Install python package with mcp extra
 COPY python/pyproject.toml python/
 COPY python/src/ python/src/
-RUN pip install -e './python[mcp]'
+RUN pip install -e './python[mcp,turso]'
 
 # Copy scripts and schema for migrate if needed
 COPY schema/ /app/schema/

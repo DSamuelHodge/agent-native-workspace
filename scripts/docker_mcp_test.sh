@@ -18,6 +18,7 @@
 #
 # Requirements on host: Docker (client + daemon).
 # Inside container we use a fresh python:3.12-bookworm + apt sqlite3 (has FTS5).
+# Production image alternative: docker build -f Dockerfile -t agent-native-mcp .
 
 set +e  # Do not use strict mode in this wrapper to avoid affecting caller shell
 
@@ -52,7 +53,11 @@ docker run --rm \
     python -m venv /tmp/venv_docker_mcp || true
     . /tmp/venv_docker_mcp/bin/activate
     pip install -q --upgrade pip
-    pip install -q -e ".[dev]" -e ".[mcp]"
+    if [ -n "${DATABASE_URL}" ]; then
+      pip install -q -e ".[dev]" -e ".[mcp,turso]"
+    else
+      pip install -q -e ".[dev]" -e ".[mcp]"
+    fi
 
     python -m pytest tests/test_mcp_tools_integration.py -q --tb=short
 
