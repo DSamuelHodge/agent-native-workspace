@@ -531,4 +531,4 @@ CREATE TABLE integrations (
   version only needs one kind of actor, you can likely collapse `bots` into `chats`
   with a `chat_type` discriminator instead of maintaining both.
 
-Want me to go a layer deeper — e.g. draft the MCP tool JSON schemas (params/returns) mapped 1:1 onto these tables, or write the actual SQLAlchemy/Drizzle models?
+ models?
