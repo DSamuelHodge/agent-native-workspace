@@ -404,7 +404,7 @@ CREATE TABLE notifications (
     id         TEXT PRIMARY KEY NOT NULL,
     user_id    TEXT REFERENCES users(id) ON DELETE CASCADE,
     notif_type TEXT NOT NULL,
-    entity_id  TEXT REFERENCES entities(id),
+    entity_id  TEXT REFERENCES entities(id) ON DELETE CASCADE,
     seen_at    TEXT,
     done_at    TEXT,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
@@ -418,7 +418,7 @@ CREATE TABLE import_entities (
     source              TEXT NOT NULL CHECK (source IN ('notion','linear','slack')),
     external_id         TEXT NOT NULL,
     status              TEXT NOT NULL DEFAULT 'staged' CHECK (status IN ('staged','in_flight','imported','declined')),
-    target_entity_id    TEXT REFERENCES entities(id),
+    target_entity_id    TEXT REFERENCES entities(id) ON DELETE CASCADE,
     imported_by_user_id TEXT REFERENCES users(id),
     created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     UNIQUE (source, external_id)
@@ -429,7 +429,7 @@ CREATE TABLE activity_log (
     user_id       TEXT NOT NULL REFERENCES users(id),
     actor         TEXT NOT NULL DEFAULT 'user',
     action_type   TEXT NOT NULL,
-    entity_id     TEXT REFERENCES entities(id),
+    entity_id     TEXT REFERENCES entities(id) ON DELETE CASCADE,
     property_name TEXT,
     property_type TEXT CHECK (property_type IS NULL OR property_type IN (
         'text','number','date','boolean','select','multi_select','user_ref'

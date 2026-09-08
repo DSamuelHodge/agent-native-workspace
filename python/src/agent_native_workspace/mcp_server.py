@@ -1125,12 +1125,16 @@ def _register_tools(mcp: FastMCP) -> None:
     def DeleteReminder(reminderId: str) -> dict:
         session = _get_session()
         try:
+            # Clean referencing rows without ON DELETE CASCADE (or for old DBs)
+            session.execute(text("DELETE FROM activity_log WHERE entity_id = :id"), {"id": reminderId})
+            session.execute(text("DELETE FROM mentions WHERE source_entity_id = :id OR target_entity_id = :id"), {"id": reminderId})
+            session.execute(text("DELETE FROM notifications WHERE entity_id = :id"), {"id": reminderId})
             session.execute(text("DELETE FROM reminders WHERE entity_id = :id"), {"id": reminderId})
             session.execute(text("DELETE FROM entities WHERE id = :id"), {"id": reminderId})
             session.commit()
             return {"id": reminderId, "deleted": True}
         finally:
-            session.close()
+            session.close() 
 
     @mcp.tool()
     def ReadProject(projectId: str) -> dict:
