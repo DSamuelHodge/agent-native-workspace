@@ -31,14 +31,21 @@ echo "==> This will create data/agent_native.db on the host via bind mount."
 docker run --rm \
   -v "${ROOT}:/workspace" \
   -w /workspace \
+  -e DATABASE_URL="${DATABASE_URL:-}" \
   "${IMAGE}" \
   bash -c '
     set +e
     echo "== [container] Installing sqlite3 CLI =="
     apt-get update -qq && apt-get install -y -qq sqlite3
 
-    echo "== [container] Running db_up.sh (migrate) =="
-    ./scripts/db_up.sh
+    if [ -n "${DATABASE_URL}" ]; then
+      echo "== [container] Using remote DATABASE_URL (Turso) for test/eval =="
+      echo "DATABASE_URL set (length: ${#DATABASE_URL})"
+      # For remote, assume schema already applied via turso (no local migrate needed for test)
+    else
+      echo "== [container] Running db_up.sh (migrate) for local sqlite =="
+      ./scripts/db_up.sh
+    fi
 
     echo "== [container] Setting up Python env and running MCP integration tests =="
     cd python
@@ -51,8 +58,12 @@ docker run --rm \
 
     echo ""
     echo "=== MCP verification complete inside Docker ==="
-    echo "DB file is at: data/agent_native.db (on host)"
-    ls -l /workspace/data/agent_native.db 2>/dev/null || true
+    if [ -n "${DATABASE_URL}" ]; then
+      echo "Used remote DB: production-grade Turso path"
+    else
+      echo "DB file is at: data/agent_native.db (on host)"
+      ls -l /workspace/data/agent_native.db 2>/dev/null || true
+    fi
   '
 
 EXIT_CODE=$?

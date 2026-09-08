@@ -787,11 +787,20 @@ def _register_tools(mcp: FastMCP) -> None:
                 ),
                 {"id": eid, "md": fileContent},
             )
+            # Production-grade: auto maintain FTS for NameSearch/ContentSearch to work out of the box
+            session.execute(
+                text("INSERT INTO search_name_fts (entity_id, name) VALUES (:e, :n)"),
+                {"e": eid, "n": documentName}
+            )
+            session.execute(
+                text("INSERT INTO search_content_fts (entity_id, content) VALUES (:e, :c)"),
+                {"e": eid, "c": fileContent}
+            )
             if isTask:
                 # Mark as task via a convention property (or skill-like). For now just name prefix is enough; real tasks use propf.
                 pass
             session.commit()
-            return {"id": eid, "name": documentName}
+            return {"id": eid, "name": documentName} 
         finally:
             session.close()
 
@@ -938,8 +947,11 @@ def _register_tools(mcp: FastMCP) -> None:
     def RenameDocument(documentId: str, documentName: str) -> dict:
         session = _get_session()
         try:
+            # Production: keep FTS in sync on rename
+            session.execute(text("DELETE FROM search_name_fts WHERE entity_id = :id"), {"id": documentId})
             session.execute(text("UPDATE entities SET name = :n, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = :id"),
                           {"n": documentName, "id": documentId})
+            session.execute(text("INSERT INTO search_name_fts (entity_id, name) VALUES (:e, :n)"), {"e": documentId, "n": documentName})
             session.commit()
             return {"id": documentId, "name": documentName}
         finally:
@@ -951,6 +963,8 @@ def _register_tools(mcp: FastMCP) -> None:
         try:
             owner = _get_or_create_demo_user(session)
             eid = _create_entity(session, "project", owner, projectName, parentProjectId)
+            # Production: index project name for search
+            session.execute(text("INSERT INTO search_name_fts (entity_id, name) VALUES (:e, :n)"), {"e": eid, "n": projectName})
             session.commit()
             return {"id": eid, "name": projectName, "entityType": "project"}
         finally:
@@ -1365,7 +1379,10 @@ def _register_tools(mcp: FastMCP) -> None:
             row = session.execute(text("SELECT content_md FROM documents WHERE entity_id = :id"), {"id": document_id}).fetchone()
             current = row[0] if row else ""
             new_content = current + "\n\n<!-- Edit via instructions: " + instructions + " -->\n"
+            # Production: keep content FTS in sync
+            session.execute(text("DELETE FROM search_content_fts WHERE entity_id = :id"), {"id": document_id})
             session.execute(text("UPDATE documents SET content_md = :c WHERE entity_id = :id"), {"c": new_content, "id": document_id})
+            session.execute(text("INSERT INTO search_content_fts (entity_id, content) VALUES (:e, :c)"), {"e": document_id, "c": new_content})
             session.execute(text("UPDATE entities SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = :id"), {"id": document_id})
             session.commit()
             return {"id": document_id, "updated": True, "note": "basic append-edit; full patch would apply the instructions"}
