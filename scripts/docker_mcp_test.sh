@@ -39,9 +39,10 @@ docker run --rm \
     echo "== [container] Installing sqlite3 CLI =="
     apt-get update -qq && apt-get install -y -qq sqlite3
 
-    if [ -n "${DATABASE_URL}" ]; then
+if [ -n "${DATABASE_URL}" ]; then
       echo "== [container] Using remote DATABASE_URL (Turso) for test/eval =="
       echo "DATABASE_URL set (length: ${#DATABASE_URL})"
+      # Example: libsql://agent-native-workspace-hodgederrick.aws-us-west-2.turso.io?authToken=...
       # For remote, assume schema already applied via turso (no local migrate needed for test)
     else
       echo "== [container] Running db_up.sh (migrate) for local sqlite =="
