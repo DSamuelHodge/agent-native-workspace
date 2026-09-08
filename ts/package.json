@@ -10,6 +10,7 @@
     "drizzle-orm": "^0.44.5"
   },
   "devDependencies": {
+    "drizzle-kit": "^0.20.14",
     "tsx": "^4.23.13",
     "typescript": "^5.9.2"
   }

@@ -531,4 +531,60 @@ CREATE TABLE integrations (
   version only needs one kind of actor, you can likely collapse `bots` into `chats`
   with a `chat_type` discriminator instead of maintaining both.
 
- models?
+## 6. Latest MCP Stateless Conventions (adopted by this project)
+
+This implementation targets the 2026-07-28 MCP spec (stateless core):
+
+- Remove mandatory `initialize` + `notifications/initialized`. Every request carries `MCP-Protocol-Version` (header for HTTP + `_meta.io.modelcontextprotocol/protocolVersion`).
+- No `Mcp-Session-Id`. Default to stateless (per-request factory for Streamable HTTP). Sessions only when you explicitly need server-to-client push or per-client isolation.
+- Mandatory `server/discover` RPC: returns supported protocol versions, capabilities, serverInfo.
+- Streamable HTTP requires `Mcp-Method` + `Mcp-Name` headers for routing/authorization without body parse.
+- List results (`tools/list`, `resources/list`, ...) MUST include `ttlMs` + `cacheScope` (and SHOULD be deterministic order).
+- All results carry `resultType: "complete" | "input_required"` (MRTR for elicitation/confirmations).
+- WebSearch / WebFetch / code exec tools are implemented as thin facades or direct (Claude built-ins or local sandbox equivalents).
+- Tool catalog is stable and versioned; clients can cache `tools/list`.
+
+See README for run instructions and client config examples.
+
+## 7. Tool Surface (67+ tools, Macro parity)
+
+The MCP server exposes a tool surface modeled directly on Macro's registry (see fetched `docs.macro.com/AI/mcp/tools/*` and `llms.txt`).
+
+Core groups (non-exhaustive; exact names + schemas in server code):
+
+**Discovery & Meta**
+- SelfKnowledge, server/discover, SearchTools, LoadTools
+
+**Listing & Browsing**
+- ListEntities, ListTags, ListSkills, ListBots, ListTeamMembers, ListInboxes, ListLabels, ListReminders, ListNotifications, ListCompanies, ListCalendarEvents, ListCalendars, ListImportEntities
+
+**Read**
+- ReadContent, ReadMetadata, ReadProject, ReadChat, ReadCallRecord, ReadChannelMessages, ReadChannelThread, ReadChannelMessageContext, GetThread, GetEntityProperties, GetCompany, GetBotWebhooks, ReadActivity
+
+**Create / Edit / Delete**
+- CreateDocument, EditDocument, RenameDocument, CreateProject, MoveToProject, CreateChannel, RenameChannel, ManageChannelParticipants, SendChannelMessage, CreateTag, EditTag, DeleteTag, CreateReminder, UpdateReminder, DeleteReminder, CreateCalendarEvent, UpdateCalendarEvent, DeleteCalendarEvent, CreateBot, ConfigureBot, DeleteBot, IssueBotCredential, ManageBotChannelAccess, CreateImportEntity, DeleteImportEntity, ImportNotionPage
+
+**Properties & Bulk**
+- SetEntityProperty, GetEntityProperties, BulkSetEntityPropertyOptions
+
+**Search**
+- NameSearch, ContentSearch, SearchSkills
+
+**Email / Labels**
+- UpdateThreadLabels, SetSenderPolicy, SendEmail
+
+**Notifications**
+- MarkNotificationsSeen, MarkNotificationsDone
+
+**Agents & Misc**
+- Subagent, DisplayResults, BashCodeExecution, TextEditorCodeExecution, WebSearch, WebFetch
+
+(Plus any Macro additions such as full bot credential flows, activity, etc.)
+
+Each tool's `input_schema` mirrors Macro's (from live MCP + docs). Handlers are implemented against the shared DDL/ORMs.
+
+See the Python MCP server registry for the exact Pydantic/Zod schemas and docstrings.
+
+---
+
+Want the full per-tool input/output JSON Schemas + handler implementations, or the Drizzle/SQLAlchemy query patterns for the trickier ones (propf soup ASTs, FTS ranking, bulk option deltas)?

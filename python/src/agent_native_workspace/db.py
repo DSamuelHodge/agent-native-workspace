@@ -15,10 +15,9 @@ def database_url() -> str:
         return f"sqlite:///{_DEFAULT_DB}"
     if url.startswith("file:"):
         path = url[5:]
-        if path.startswith("//"):
-            path = path[2:]
+        path = path.removeprefix("//")
         return f"sqlite:///{path}"
-    if url.startswith("libsql://") or url.startswith("https://"):
+    if url.startswith(("libsql://", "https://")):
         # remote Turso: require sqlalchemy-libsql or use HTTP separately
         return url
     return url
@@ -34,7 +33,7 @@ def get_engine(url: str | None = None) -> Engine:
     if u.startswith("sqlite:"):
 
         @event.listens_for(engine, "connect")
-        def _fk(dbapi_conn, _connection_record):  # noqa: ANN001
+        def _fk(dbapi_conn, _connection_record):
             cur = dbapi_conn.cursor()
             cur.execute("PRAGMA foreign_keys=ON")
             cur.close()

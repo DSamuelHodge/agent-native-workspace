@@ -120,7 +120,7 @@ def test_extension_type_enforced(session):
     session.add(e)
     session.flush()
     session.add(Document(entity_id=e.id, content_md="nope"))
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         session.flush()
 
 

@@ -6,8 +6,10 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "drizzle.config.ts"]
+"include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["drizzle.config.ts", "node_modules"]
 }
